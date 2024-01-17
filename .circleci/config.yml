@@ -1,0 +1,48 @@
+version: 2.1
+
+defaults: &defaults
+  docker:
+    - image: isgrove/dotnet-sdk-for-vm
+  working_directory: ~/repo
+
+commands:
+  run_on_ssh:
+    parameters:
+      command:
+        type: string
+    steps:
+      - run:
+          name: Run on command on VM
+          command: ssh $SSH_USER@$SSH_HOST "<< parameters.command >>"
+
+jobs:      
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Get Commit Hash
+          command: git rev-parse HEAD >  "ExampleApp/version.txt"
+      - run:
+          name: Restore .NET dependecies
+          command: dotnet restore
+      - run:
+          name: Build .NET project
+          command: dotnet build
+      - add_ssh_keys:
+          fingerprints:
+            - "13:8f:24:a4:61:23:dc:4e:a6:8b:fe:15:76:bf:f9:2d"
+      - run:
+          name: Copy binaries to VM
+          command: scp -o StrictHostKeyChecking=no -r ~/repo/ExampleApp/bin/Debug/net7.0 $SSH_USER@$SSH_HOST:~
+      - run_on_ssh:
+          command: "sudo rm -rf /var/www/exampleapp/net7.0"
+      - run_on_ssh:
+          command: "sudo mv net7.0/ /var/www/exampleapp/"
+      - run_on_ssh:
+          command: "sudo systemctl restart kestrel-exampleapp.service"
+
+workflows:
+  build-and-deploy:
+    jobs:
+      - build
