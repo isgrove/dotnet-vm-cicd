@@ -21,9 +21,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Get Commit Hash
-          command: git rev-parse HEAD >  "ExampleApp/version.txt"
-      - run:
           name: Restore .NET dependecies
           command: dotnet restore
       - run:
